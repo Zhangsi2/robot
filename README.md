@@ -29,26 +29,55 @@
 ## 命令行用法
 数据默认读取 `data/data.xlsx`，如需指定其它文件，通过 `--data` 参数传入。
 
-```bash
-python -m robot_analysis \
-  --method stepwise \
-  --groups macro,industry,innovation \
-  --max-vars 6 \
-  --standardize \
-  --data data/data.xlsx \
-  --output results_stepwise.csv
-```
+### 任务示例
+- **变量筛选**（数据驱动）  
+  ```bash
+  python -m robot_analysis \
+    --task select \
+    --groups macro,industry,innovation \
+    --max-controls 8 \
+    --selection-method lasso \
+    --verbose \
+    --output results_controls.csv
+  ```
+- **基准估计**（双重固定效应，`x` 滞后 1 期）  
+  ```bash
+  python -m robot_analysis \
+    --task estimate \
+    --lag-x 1 \
+    --base-vars "log_gdp,manufacturing_share" \
+    --output results_baseline.csv
+  ```
+- **机制与门槛检验**  
+  ```bash
+  python -m robot_analysis \
+    --task mechanism \
+    --mediator "R&D研究人员 （每百万人）" \
+    --moderator "制造业，增加值（占GDP的百分比）"
 
-常用参数说明：
-- `--method {stepwise,subsets}`：选择变量搜索策略。
-- `--groups`：指定候选变量分组，多个分组用逗号分隔。
-- `--base-vars`：强制纳入模型的控制变量（原始列名）。
-- `--max-vars`、`--min-improvement`：限制模型复杂度与逐步回归增益。
-- `--max-missing`：剔除缺失率超过阈值的变量。
-- `--standardize`：对控制变量做标准化。
-- `--output`：将结果导出为 CSV。
+  python -m robot_analysis \
+    --task threshold \
+    --threshold-var "制造业出口（占商品出口的百分比）" \
+    --threshold-bootstrap 200
+  ```
+- **稳健性分析**（口径/滞后/插补对比）  
+  ```bash
+  python -m robot_analysis \
+    --task robustness \
+    --lag-x 1 \
+    --output results_robustness.csv
+  ```
 
-更多参数可通过 `python -m robot_analysis --help` 查看。
+常用参数（不同任务共享）：
+- `--task {select,estimate,mechanism,threshold,robustness}`：指定要执行的分析步骤。
+- `--groups`：候选变量分组；`--extra-vars`、`--base-vars` 可补充/固定特定变量。
+- `--missing-threshold` / `--corr-alpha` / `--vif-threshold`：控制筛选阶段的缺失率、相关性与共线性阈值。
+- `--selection-method {lasso,stepwise}`、`--max-controls`：控制变量筛选策略与最大数量。
+- `--lag-x`：`x` 的滞后期数；机制/门槛任务会复用该设定。
+- `--threshold-bootstrap`：门槛检验的 Bootstrap 次数。
+- `--output`：将结果导出为 CSV/JSON。
+
+更多选项详见 `python -m robot_analysis --help`。
 
 ## 开发与测试
 ```bash

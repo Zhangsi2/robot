@@ -13,10 +13,6 @@ def test_run_returns_dataframe():
     from robot_analysis import run
 
     # 仅测试函数可调用且返回 DataFrame，不要求具体结果
-    try:
-        df = run(["--max-vars", "2", "--max-combos", "1"])
-    except SystemExit:
-        # 参数解析报错或缺少数据文件时跳过
-        return
+    df = run(["--task", "select", "--groups", "macro", "--max-controls", "2"])
 
     assert isinstance(df, pd.DataFrame)

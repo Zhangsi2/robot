@@ -89,36 +89,30 @@
 7. **结果记录与复现**
    - 编写脚本自动化跑遍不同组合，输出评价指标、系数估计与诊断统计到表格或日志。
 - 对最终推荐的变量组合生成回归表、可视化（拟合优度趋势、重要性排序）及文字解读，方便写入论文或报告。
+## 项目化工具说明：`robot_analysis` 包
+- **目的**：通过标准化 Python 包方式，快速比较不同控制变量组合对 `y` 的拟合表现，并输出核心评价指标。
+- **依赖**：`pandas`、`numpy`、`statsmodels`、`openpyxl`、`scikit-learn`。缺失依赖时先运行 `pip install -r requirements.txt`。
+- **候选变量池**：包内置 `macro`、`industry`、`innovation`、`trade`、`finance`、`infrastructure`、`human_capital` 等分组；也可用 `--extra-vars` / `--base-vars` 指定自定义列。
 
--## 脚本工具说明：`analysis_tool.py`
-- **目的**：快速构建固定效应回归模型，比较不同控制变量组合对 `y` 的拟合表现，并输出核心评价指标。
-- **依赖**：`pandas`、`numpy`、`statsmodels`、`openpyxl`。缺失依赖时先运行 `pip install pandas numpy statsmodels openpyxl`。
-- **候选变量池**：脚本内置 `macro`、`industry`、`innovation`、`trade`、`finance`、`infrastructure`、`human_capital` 等分组；也可以通过 `--extra-vars` 传入额外原始列名（与 Excel 中保持一致）。
-- **常用参数**：
--  - `--method {stepwise,subsets}`：选择前向逐步回归或有限子集穷举。
--  - `--groups macro,innovation`：限定使用的变量分组，`all` 表示使用全部预置分组。
--  - `--base-vars`：始终包含在模型中的控制变量（原始列名，逗号分隔）。
--  - `--max-vars`：模型中控制变量数量上限；`--min-improvement` 控制 stepwise 时的最小调整后 R² 提升。
--  - `--max-missing`：剔除缺失率高于阈值的变量；`--standardize` 对控制变量做标准化。
--  - `--max-combos`（仅 `subsets`）限制评估的组合数量，避免计算量过大。
--  - `--output results.csv`：将结果保存为 CSV，便于后续整理。
-+## 项目化工具说明：`robot_analysis` 包
-+- **目的**：通过标准化 Python 包方式，快速比较不同控制变量组合对 `y` 的拟合表现，并输出核心评价指标。
-+- **依赖**：`pandas`、`numpy`、`statsmodels`、`openpyxl`。缺失依赖时先运行 `pip install pandas numpy statsmodels openpyxl` 或使用 `pip install -r requirements.txt`。
-+- **候选变量池**：包内置 `macro`、`industry`、`innovation`、`trade`、`finance`、`infrastructure`、`human_capital` 等分组；也可以通过 `--extra-vars` 传入额外原始列名（与 Excel 中保持一致）。
-+- **常用参数**：
-+  - `--method {stepwise,subsets}`：选择前向逐步回归或有限子集穷举。
-+  - `--groups macro,innovation`：限定使用的变量分组，`all` 表示使用全部预置分组。
-+  - `--base-vars`：始终包含在模型中的控制变量（原始列名，逗号分隔）。
-+  - `--max-vars`：模型中控制变量数量上限；`--min-improvement` 控制 stepwise 时的最小调整后 R² 提升。
-+  - `--max-missing`：剔除缺失率高于阈值的变量；`--standardize` 对控制变量做标准化。
-+  - `--max-combos`（仅 `subsets`）限制评估的组合数量，避免计算量过大。
-+  - `--output results.csv`：将结果保存为 CSV，便于后续整理。
-+- **运行示例**：
-+  - `python -m robot_analysis --method stepwise --groups macro,industry,innovation --max-vars 6 --standardize --data data/data.xlsx --output results_stepwise.csv`
-+  - `python -m robot_analysis --method subsets --groups trade,finance --max-vars 4 --max-combos 150 --data data/data.xlsx --output results_subsets.csv`
-+- **输出解读**：终端会展示拟合度最好的若干组合（含调整后 R²、RMSE、`x` 系数及显著性）；若指定 `--output`，CSV 中将包含控制变量原始名称列表，便于直接引用到论文或报告。
-+- **拓展方向**：
-+  1. 将脚本嵌入 notebook，通过可视化呈现各组合的指标差异。
-+  2. 增加交叉验证或时间滚动预测逻辑，评估模型外推能力。
-+  3. 接入 Lasso/Elastic Net 等惩罚法，在固定效应去均值后做特征筛选，实现更大规模变量池的自动化搜索。
+### 任务 1：数据驱动筛选（`--task select`）
+- 缺失率筛查（默认 <30%）与 x/y 的 Pearson 相关性显著性检验（默认 p<0.05），自动记录剔除原因。
+- 内置 VIF 共线性检测（阈值默认 10），迭代剔除高共线控制变量。
+- 支持 LASSO（默认）或逐步回归，筛选 6–8 个基准控制变量。
+- `--verbose` 会打印缺失/相关性/VIF/筛选历史详情；`--output` 可导出 CSV/JSON。
+- 示例：`python -m robot_analysis --task select --groups macro,innovation,trade --max-controls 8 --selection-method lasso --verbose`
+
+### 任务 2：模型估计与检验
+- **基准估计（`--task estimate`）**：双重固定效应，`x` 默认滞后 1 期（`--lag-x` 可调），并使用国家聚类稳健标准误。
+- **机制检验（`--task mechanism`）**：`--mediator` 触发 “x→中介→y” 两步回归；`--moderator` 自动加入 `x_lag × 调节变量` 交互项。可同时使用。
+- **门槛检验（`--task threshold`）**：实现 Hansen 面板门槛搜索，返回最佳门槛值、LR 统计量和 Bootstrap p 值（`--threshold-bootstrap` 控制次数）。
+- **稳健性分析（`--task robustness`）**：比较 `x` 口径（原值 vs `ln(1+x)`）、滞后期（`lag`, `lag+1`）、缺失处理（原始/线性插值/MICE），输出系数、标准误、p 值与样本量。
+
+### 数据变换与缺失处理
+- 默认对连续变量执行 1%/99% 缩尾，并生成 `x_log1p = ln(1+x)`；`y` 保持原值。
+- 缺失处理仅作用于控制/机制变量，对 `x`、`y` 不做大规模插补；可在稳健性任务中比较线性插值与 MICE。
+- 需要额外对数化的金额列可在 Notebook 中提前处理或扩展脚本参数。
+
+- **拓展方向**：
+  1. 将输出表格对接 LaTeX/Markdown，制作回归表、门槛搜索记录、边际效应图。
+  2. 结合可视化脚本绘制门槛 LR 曲线、变量缺失热力图、交互效应图。
+  3. 在 `src/robot_analysis/cli.py` 中扩展差分 GMM、工具变量等高阶模型，满足更复杂研究需求。
