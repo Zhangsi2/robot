@@ -79,6 +79,27 @@
 
 更多选项详见 `python -m robot_analysis --help`。
 
+## 可视化与论文生成
+- 生成描述性图表：  
+  ```bash
+  python scripts/visualize.py \
+    --countries China,Germany,'United States' \
+    --output-dir outputs/figures \
+    --max-corr-vars 12
+  ```
+- 自动生成写作 prompt 与分析摘要（交由 LLM 撰写论文）：  
+  ```bash
+  python scripts/generate_paper.py \
+    --mediator "R&D研究人员 （每百万人）" \
+    --threshold-var "制造业出口（占商品出口的百分比）" \
+    --include-robustness \
+    --prompt-output outputs/paper_prompt.md \
+    --context-output outputs/paper_context.json
+  ```
+  运行后将在 `outputs/` 下生成 prompt 与分析摘要，可将 prompt 投喂给 LLM（例如本助手）生成最终论文，并保存至 `outputs/paper.md`。
+
+- 若需沿用旧版自动生成 Markdown 草稿，可在命令末尾附加 `--draft-from-template --output outputs/paper.md`。
+
 ## 开发与测试
 ```bash
 pip install -e .[dev]
@@ -88,4 +109,4 @@ pytest
 ## 推广建议
 - 在 Jupyter Notebook 中调用 `from robot_analysis import run` 以便进行可视化扩展。
 - 将结果 CSV 作为分析记录纳入项目文档或论文附录。
-- 可在 `src/robot_analysis/cli.py` 中自定义变量分组或扩展建模策略。*** End Patch
+- 可在 `src/robot_analysis/cli.py` 中自定义变量分组或扩展建模策略。

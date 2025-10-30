@@ -468,6 +468,10 @@ def fit_fixed_effects_model(
     cluster_col: str,
 ) -> Tuple[object, pd.DataFrame]:
     """拟合双重固定效应并返回聚类稳健结果。"""
+    columns_needed = [dependent, regressor, cluster_col, "country", "year"] + list(controls)
+    columns_needed = list(dict.fromkeys(columns_needed))
+    data = df[columns_needed].dropna()
+
     formula = f"{dependent} ~ {regressor}"
     if controls:
         formula += " + " + " + ".join(controls)
@@ -484,16 +488,21 @@ def fit_fixed_effects_model(
     else:
         smf = globals()["_SMF"]  # type: ignore[assignment]
 
-    model = smf.ols(formula=formula, data=df)
+    model = smf.ols(formula=formula, data=data)
     fitted = model.fit()
-    robust = fitted.get_robustcov_results(cov_type="cluster", groups=df[cluster_col])
+    used_index = fitted.model.data.frame.index
+    cluster_series = data.loc[used_index, cluster_col]
+    cluster_codes = pd.Categorical(cluster_series).codes
+    robust = fitted.get_robustcov_results(cov_type="cluster", groups=cluster_codes)
 
+    param_index = pd.Index(fitted.model.exog_names)
+    params = pd.Series(robust.params, index=param_index)
     summary_df = pd.DataFrame(
         {
-            "coef": robust.params,
-            "std_err": robust.bse,
-            "t": robust.tvalues,
-            "p>|t|": robust.pvalues,
+            "coef": params,
+            "std_err": pd.Series(robust.bse, index=param_index),
+            "t": pd.Series(robust.tvalues, index=param_index),
+            "p>|t|": pd.Series(robust.pvalues, index=param_index),
         }
     )
     return robust, summary_df
@@ -740,12 +749,16 @@ def run_robustness_checks(
                 controls=controls,
                 cluster_col="country",
             )
+            reg_name = f"x_lag{lag}"
+            coef = table.loc[reg_name, "coef"] if reg_name in table.index else np.nan
+            se = table.loc[reg_name, "std_err"] if reg_name in table.index else np.nan
+            pval = table.loc[reg_name, "p>|t|"] if reg_name in table.index else np.nan
             records.append(
                 {
                     "variant": f"{label}_lag{lag}",
-                    "coef": float(model.params.get(f"x_lag{lag}", np.nan)),
-                    "se": float(model.bse.get(f"x_lag{lag}", np.nan)),
-                    "pvalue": float(model.pvalues.get(f"x_lag{lag}", np.nan)),
+                    "coef": float(coef),
+                    "se": float(se),
+                    "pvalue": float(pval),
                     "n_obs": int(model.nobs),
                 }
             )
@@ -760,12 +773,15 @@ def run_robustness_checks(
                 controls=controls,
                 cluster_col="country",
             )
+            coef = table.loc[alt_x, "coef"] if alt_x in table.index else np.nan
+            se = table.loc[alt_x, "std_err"] if alt_x in table.index else np.nan
+            pval = table.loc[alt_x, "p>|t|"] if alt_x in table.index else np.nan
             records.append(
                 {
                     "variant": f"{label}_{alt_x}",
-                    "coef": float(model.params.get(alt_x, np.nan)),
-                    "se": float(model.bse.get(alt_x, np.nan)),
-                    "pvalue": float(model.pvalues.get(alt_x, np.nan)),
+                    "coef": float(coef),
+                    "se": float(se),
+                    "pvalue": float(pval),
                     "n_obs": int(model.nobs),
                 }
             )

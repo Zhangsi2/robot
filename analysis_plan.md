@@ -116,3 +116,37 @@
   1. 将输出表格对接 LaTeX/Markdown，制作回归表、门槛搜索记录、边际效应图。
   2. 结合可视化脚本绘制门槛 LR 曲线、变量缺失热力图、交互效应图。
   3. 在 `src/robot_analysis/cli.py` 中扩展差分 GMM、工具变量等高阶模型，满足更复杂研究需求。
+
+### 可视化工具：`scripts/visualize.py`
+- 自动生成三类核心图表：`x-y` 散点（按年份着色）、重点国家的时间序列折线、与 `y` 相关变量的热力图。
+- 默认输出目录 `outputs/figures`，可通过 `--countries` 指定重点国家或用 `--top-countries` 自动挑选渗透率最高的若干经济体。
+- 相关变量热力图支持 `--corr-variables` 自定义；若缺省则自动筛选与 `y` 相关性最高的指标。
+- 示例命令：  
+  `python scripts/visualize.py --countries China,Germany,'United States' --output-dir outputs/figures --max-corr-vars 12`
+- 生成的图像可直接嵌入论文或报告，用于描述性分析与机制讨论。
+
+### 论文生成工具：`scripts/generate_paper.py`
+- 目标：汇总变量筛选、基准/机制/门槛/稳健性检验结果，生成结构化的写作 prompt 及分析摘要，供 LLM 撰写最终论文。
+- 功能覆盖：自动执行数据清洗、控制变量筛选、基准回归、机制与门槛检验、稳健性对比，并将要点注入写作模板，而非直接输出成稿。
+- 支持自定义参数：
+  - `--mediator` / `--moderator`：指定中介与调节变量；`--threshold-var`：门槛检验变量。
+  - `--include-robustness`：生成口径/滞后/插补对比的稳健性描述。
+  - 其他参数与 `robot_analysis` CLI 保持一致（如 `--groups`、`--max-controls`、`--lag-x` 等）。
+- 输出：`outputs/paper_prompt.md`（写作指令）、`outputs/paper_context.json`（分析摘要数据）。
+- 示例命令：  
+  ```bash
+  python scripts/generate_paper.py \
+    --mediator "R&D研究人员 （每百万人）" \
+    --threshold-var "制造业出口（占商品出口的百分比）" \
+    --include-robustness \
+    --prompt-output outputs/paper_prompt.md \
+    --context-output outputs/paper_context.json
+  ```
+- 使用步骤：
+  1. 运行上例生成 prompt 与摘要；
+  2. 将 prompt 投喂给 LLM（例如本助手），生成 Markdown 论文并保存为 `outputs/paper.md`；
+  3. 如需沿用旧流程，可追加 `--draft-from-template --output outputs/paper.md` 直接得到模板化草稿。
+- **拓展方向**：
+  1. 在 prompt 模板中加入特定期刊格式或引用要求，实现定制化写作；
+  2. 将 `outputs/paper.md` 转换为 LaTeX 或 Word，与 `scripts/visualize.py` 生成的图表排版；
+  3. 基于 `paper_context.json` 进一步构建审稿人回复、政策摘要等衍生内容。
