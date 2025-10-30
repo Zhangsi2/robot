@@ -1,0 +1,4 @@
+pandas>=1.5
+numpy>=1.23
+statsmodels>=0.13
+openpyxl>=3.1
